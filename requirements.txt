@@ -1,0 +1,3 @@
+radar==0.3
+SQLAlchemy==1.3.22
+aiohttp==3.7.3
