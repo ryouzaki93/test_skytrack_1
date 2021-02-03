@@ -1,4 +1,5 @@
 from datetime import datetime
+from sqlalchemy.future import select
 import json
 
 from models.schemas import User, Order, Book, Shop, OrderItem, Stock
@@ -7,11 +8,13 @@ from models.schemas import User, Order, Book, Shop, OrderItem, Stock
 # запрос данных пользователя в БД по user_id
 # результат из БД предполагает только одну строчку
 # результаты запроса возвращаются в формате json
-def get_user_by_id(user_id, session):
+async def get_user_by_id(user_id, session):
     try:
-        response_from_db = session.query(User).filter(User.id == user_id).one()
-        return json.dumps({"user_id": user_id, "name": response_from_db.name, "surname": response_from_db.surname,
-                           "fathers_name": response_from_db.fathers_name, "email": response_from_db.email},
+        stmt = select(User).filter(User.id == user_id)
+        result = await session.execute(stmt)
+        user = result.scalars().one()
+        return json.dumps({"user_id": user_id, "name": user.name, "surname": user.surname,
+                           "fathers_name": user.fathers_name, "email": user.email},
                           ensure_ascii=False)
     except Exception as e:
         return "Произошла ошибка" + str(e)
@@ -20,18 +23,18 @@ def get_user_by_id(user_id, session):
 # запрос истории заказов пользователя по user_id
 # функции filter выполняют join по внешнему ключу
 # итоговый результат в формате list, содержащий json (id заказа, дата заказа, имя книги, кол-во книг, название магазина)
-def get_user_history_orders(user_id, session):
+async def get_user_history_orders(user_id, session):
     try:
         response_from_db = []
-        for order_id, reg_date, book_name, book_quantity, shop_name in \
-                session.query(Order.id, Order.reg_date, Book.name, OrderItem.book_quantity, Shop.name). \
-                        filter(Order.id == OrderItem.order_id). \
-                        filter(Book.id == OrderItem.book_id). \
-                        filter(Shop.id == OrderItem.shop_id). \
-                        filter(Order.user_id == user_id):
-            response_from_db.append(json.dumps({"order_id": order_id, "reg_date": reg_date.strftime('%Y-%m-%d'),
-                                                "book_name": book_name, "book_quantity": book_quantity,
-                                                "shop_name": shop_name}, ensure_ascii=False))
+        stmt = select(Order.id, Order.reg_date, Book.name, OrderItem.book_quantity, Shop.name).\
+            filter(Order.id == OrderItem.order_id).\
+            filter(Book.id == OrderItem.book_id). \
+            filter(Shop.id == OrderItem.shop_id). \
+            filter(Order.user_id == user_id)
+        result = await session.execute(stmt)
+        orders = result.fetchall()
+        for order in orders:
+            response_from_db.append(dict(order._mapping))
         return str(response_from_db)
     except Exception as e:
         return "Произошла ошибка" + str(e)
@@ -53,6 +56,7 @@ def add_new_order(post, session):
             session.flush()
     except Exception as e:
         return "Произошла ошибка" + str(e)
+
 
 # получение ассортимента магазина по его id
 # итоговый результат в формате list, содержащий json (id заказа, дата заказа, имя книги, кол-во книг, название магазина)
