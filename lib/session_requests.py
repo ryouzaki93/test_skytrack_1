@@ -1,8 +1,8 @@
-import inspect
 from datetime import datetime
 from sqlalchemy.future import select
 import json
 import logging
+import traceback
 
 from models.schemas import User, Order, Book, Shop, OrderItem, Stock
 
@@ -15,9 +15,8 @@ def exception_decorator(function):
             result = await function(*args)
             return result
         except Exception as e:
-            logger.warning(inspect.stack()[0][3] + "raised exception ", e)
+            logger.error(traceback.format_exc())
             return "Raised exception" + str(e)
-
     return wrapper
 
 
@@ -27,9 +26,9 @@ def exception_decorator(function):
 @exception_decorator
 async def get_user_by_id(user_id, session):
     stmt = select(User).filter(User.id == user_id)
-    result = await session.execute(stmt)
-    user = result.scalars().one()
-    logger.info("select finished in %s result from DB: %s", inspect.stack()[0][3], user)
+    result = await session.stream(stmt)
+    user = await result.scalars().one()
+    logger.info("selecting user_info by user_id %s finished", user.id)
     return json.dumps({"user_id": user_id, "name": user.name, "surname": user.surname,
                        "fathers_name": user.fathers_name, "email": user.email},
                       ensure_ascii=False)
@@ -46,15 +45,14 @@ async def get_user_history_orders(user_id, session):
         filter(Book.id == OrderItem.book_id). \
         filter(Shop.id == OrderItem.shop_id). \
         filter(Order.user_id == user_id)
-    result = await session.execute(stmt)
-    orders = result.all()
-    logger.info("select finished in %s result from DB: %s", inspect.stack()[0][3], orders)
-    for order in orders:
+    result = await session.stream(stmt)
+    logger.info("selecting user_orders_history by user_id %s finished", user_id)
+    async for order in result:
         response_from_db.append(
             json.dumps({"order_id": order[0], "reg_date": order[1].strftime('%Y-%m-%d'), "book_name": order[2],
                         "book_quantity": order[3], "shop_name": order[4]},
                        ensure_ascii=False))
-        return str(response_from_db)
+    return str(response_from_db)
 
 
 # добавление нового заказа
@@ -68,13 +66,13 @@ async def add_new_order(post, session):
     async with session.begin():
         session.add(order)
         await session.flush()
-        logger.info("insert flushed order in %s", inspect.stack()[0][3])
+        logger.info("insert flushed order, order_id is %s", order.id)
         for book_id, book_qt in json.loads(post.get('book_quantity')).items():
             order_item = OrderItem(order_id=order.id, book_id=book_id, shop_id=post.get('shop_id'),
                                    book_quantity=book_qt)
             session.add(order_item)
             await session.flush()
-            logger.info("insert flushed order_item in %s", inspect.stack()[0][3])
+            logger.info("insert flushed orderItem, orderItem_id is %s", order_item.id)
 
 
 # получение ассортимента магазина по его id
@@ -87,10 +85,9 @@ async def get_assortment_by_shop_id(shop_id, session):
         filter(Stock.shop_id == Shop.id). \
         filter(Stock.book_id == Book.id). \
         filter(Stock.shop_id == shop_id)
-    result = await session.execute(stmt)
-    assortment = result.all()
-    logger.info("select finished in %s result from DB: %s", inspect.stack()[0][3], assortment)
-    for position in assortment:
+    result = await session.stream(stmt)
+    logger.info("selecting shop_assortment by shop_id %s finished", shop_id)
+    async for position in result:
         response_from_db.append(
             json.dumps({"shop_name": position[0], "book_name": position[1],
                         "available_qt": position[2]},

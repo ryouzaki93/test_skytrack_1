@@ -3,7 +3,9 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.ext.asyncio import AsyncSession
 from lib import session_requests
 import logging
+import traceback
 import inspect
+
 
 engine = create_async_engine('sqlite:///database/foo.db', echo=True)
 logger = logging.getLogger('main.py')
@@ -15,12 +17,12 @@ async def get_user_info(request):
     try:
         async with AsyncSession(engine) as session:
             user_id = request.rel_url.query.get("user_id", "")
-            logger.info(inspect.stack()[0][3] + " started, user_id: %s", user_id)
+            logger.info("getting user_info by , user_id: %s", user_id)
             user_info = await session_requests.get_user_by_id(user_id, session)
             logger.info("user info from DB received: %s", user_info)
             return web.Response(text=user_info)
     except Exception as e:
-        logger.warning(inspect.stack()[0][3] + "raised exception ", e)
+        logger.error(traceback.format_exc())
         return web.Response(text=f"{e}")
     finally:
         await session.close()
@@ -32,12 +34,12 @@ async def get_user_orders(request):
     try:
         async with AsyncSession(engine) as session:
             user_id = request.rel_url.query.get("user_id", "")
-            logger.info(inspect.stack()[0][3] + " started, user_id: %s", user_id)
+            logger.info("getting user order history started, user_id: %s", user_id)
             user_history_orders = await session_requests.get_user_history_orders(user_id, session)
             logger.info("user orders from DB received: %s", user_history_orders)
         return web.Response(text=user_history_orders)
     except Exception as e:
-        logger.warning(inspect.stack()[0][3] + "raised exception ", e)
+        logger.error(traceback.format_exc())
         return web.Response(text=f"{e}")
     finally:
         await session.close()
@@ -47,14 +49,14 @@ async def get_user_orders(request):
 async def add_new_order(request):
     try:
         post = await request.post()
-        logger.info(inspect.stack()[0][3] + " started, POST message: %s", post)
         async with AsyncSession(engine) as session:
             await session_requests.add_new_order(post, session)
             await session.commit()
+            logger.info("order added (session commited), initial POST message: %s", post)
         return web.Response(text="Order added")
     except Exception as e:
         await session.rollback()
-        logger.warning(inspect.stack()[0][3] + "raised exception ", e)
+        logger.error(traceback.format_exc())
         return web.Response(text="Order not added. Exception"+f"{e}")
     finally:
         await session.close()
@@ -66,12 +68,12 @@ async def get_shop_assortment(request):
     try:
         async with AsyncSession(engine) as session:
             shop_id = request.rel_url.query.get("shop_id", "")
-            logger.info(inspect.stack()[0][3] + " started, shop_id: %s", shop_id)
+            logger.info("getting shop assortment started, shop_id: %s", shop_id)
             shop_assortment = await session_requests.get_assortment_by_shop_id(shop_id, session)
             logger.info("shop assortment from DB received: %s", shop_assortment)
         return web.Response(text=shop_assortment)
     except Exception as e:
-        logger.warning(inspect.stack()[0][3] + "raised exception ", e)
+        logger.error(traceback.format_exc())
         return web.Response(text=f"{e}")
     finally:
         await session.close()
