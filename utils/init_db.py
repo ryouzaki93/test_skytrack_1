@@ -57,12 +57,13 @@ def create_database():
 # скрипт для заполнения БД
 def fillin_database():
     with engine.connect() as connection:
-        metadata = MetaData(bind=engine, reflect=True)
+        metadata = MetaData()
+        metadata.reflect(bind=engine)
         raw_data_dict = {}
         # обход файлов в папке raw data для создания словаря с "сырыми" данными
-        # ключ - имя файла, значения хранятся в списке обработанного csv файла
-        for filename in os.listdir('../static'):
-            with open(os.path.join('../static', filename), newline='', encoding='utf-8-sig') as f:
+        # ключ - имя файла, значения хранятся в списке обработанного csv файл
+        for filename in os.listdir(os.getcwd()+'/static'):
+            with open(os.path.join(os.getcwd()+'/static', filename), newline='', encoding='utf-8-sig') as f:
                 reader = csv.reader(f)
                 raw_data_dict.update({filename.replace('.csv', ''): list(reader)})
         # очистка таблиц перед заполнением
