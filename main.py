@@ -4,7 +4,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from lib import session_requests
 import logging
 import traceback
-import inspect
 
 
 engine = create_async_engine('sqlite:///database/foo.db', echo=True)
