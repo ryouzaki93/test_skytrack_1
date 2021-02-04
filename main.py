@@ -11,7 +11,7 @@ logger = logging.getLogger('main.py')
 
 # запрос информации о пользователе
 # чтение значения из GET запроса по ключу user_id -> отправка на запрос в бд
-async def get_user_info(request, xyu):
+async def get_user_info(request):
     try:
         async with AsyncSession(engine) as session:
             user_id = request.rel_url.query.get("user_id", "")
