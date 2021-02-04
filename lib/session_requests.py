@@ -29,9 +29,8 @@ async def get_user_by_id(user_id, session):
     result = await session.stream(stmt)
     user = await result.scalars().one()
     logger.info("selecting user_info by user_id %s finished", user.id)
-    return json.dumps({"user_id": user_id, "name": user.name, "surname": user.surname,
-                       "fathers_name": user.fathers_name, "email": user.email},
-                      ensure_ascii=False)
+    return {'user_id': user_id, 'name': user.name, 'surname': user.surname, 'fathers_name': user.fathers_name,
+            'email': user.email}
 
 
 # запрос истории заказов пользователя по user_id
@@ -48,11 +47,9 @@ async def get_user_history_orders(user_id, session):
     result = await session.stream(stmt)
     logger.info("selecting user_orders_history by user_id %s finished", user_id)
     async for order in result:
-        response_from_db.append(
-            json.dumps({"order_id": order[0], "reg_date": order[1].strftime('%Y-%m-%d'), "book_name": order[2],
-                        "book_quantity": order[3], "shop_name": order[4]},
-                       ensure_ascii=False))
-    return str(response_from_db)
+        response_from_db.append({"order_id": order[0], "reg_date": order[1].strftime('%Y-%m-%d'), "book_name": order[2],
+                                 "book_quantity": order[3], "shop_name": order[4]})
+    return response_from_db
 
 
 # добавление нового заказа
@@ -88,8 +85,6 @@ async def get_assortment_by_shop_id(shop_id, session):
     result = await session.stream(stmt)
     logger.info("selecting shop_assortment by shop_id %s finished", shop_id)
     async for position in result:
-        response_from_db.append(
-            json.dumps({"shop_name": position[0], "book_name": position[1],
-                        "available_qt": position[2]},
-                       ensure_ascii=False))
-    return str(response_from_db)
+        response_from_db.append({"shop_name": position[0], "book_name": position[1],
+                                 "available_qt": position[2]})
+    return response_from_db
